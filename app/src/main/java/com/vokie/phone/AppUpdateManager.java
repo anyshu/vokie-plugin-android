@@ -17,15 +17,10 @@ import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
 
-import java.io.BufferedInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.Arrays;
 import java.util.concurrent.ExecutorService;
@@ -41,7 +36,6 @@ final class AppUpdateManager {
         void onDownloadFailed();
     }
 
-    private static final int MAX_MANIFEST_BYTES = 64 * 1024;
     private static final String APK_MIME_TYPE =
             "application/vnd.android.package-archive";
 
@@ -80,7 +74,9 @@ final class AppUpdateManager {
         if (!checking.compareAndSet(false, true)) return;
         executor.execute(() -> {
             try {
-                AppUpdateInfo update = requestManifest();
+                AppUpdateInfo update = AppUpdateManifestLoader.load(
+                        BuildConfig.UPDATE_MANIFEST_URL,
+                        BuildConfig.UPDATE_MANIFEST_BACKUP_URL);
                 long currentVersion = currentVersionCode(activity);
                 mainHandler.post(() -> {
                     checking.set(false);
@@ -158,41 +154,6 @@ final class AppUpdateManager {
             return info.versionName == null ? "" : info.versionName;
         } catch (PackageManager.NameNotFoundException ignored) {
             return "";
-        }
-    }
-
-    private AppUpdateInfo requestManifest() throws Exception {
-        HttpURLConnection connection = (HttpURLConnection)
-                new URL(BuildConfig.UPDATE_MANIFEST_URL).openConnection();
-        connection.setConnectTimeout(8_000);
-        connection.setReadTimeout(10_000);
-        connection.setRequestProperty("Accept", "application/json");
-        connection.setRequestProperty("Cache-Control", "no-cache");
-        try {
-            int status = connection.getResponseCode();
-            if (status != HttpURLConnection.HTTP_OK) {
-                throw new IOException("Update manifest HTTP " + status);
-            }
-            return AppUpdateInfo.fromJson(readLimited(connection.getInputStream()));
-        } finally {
-            connection.disconnect();
-        }
-    }
-
-    private String readLimited(InputStream stream) throws IOException {
-        try (InputStream input = new BufferedInputStream(stream);
-             ByteArrayOutputStream output = new ByteArrayOutputStream()) {
-            byte[] buffer = new byte[4096];
-            int total = 0;
-            int count;
-            while ((count = input.read(buffer)) >= 0) {
-                total += count;
-                if (total > MAX_MANIFEST_BYTES) {
-                    throw new IOException("Update manifest is too large");
-                }
-                output.write(buffer, 0, count);
-            }
-            return output.toString(StandardCharsets.UTF_8.name());
         }
     }
 

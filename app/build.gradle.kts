@@ -22,11 +22,16 @@ android {
         applicationId = "com.vokie.phone"
         minSdk = 26
         targetSdk = 35
-        versionCode = 10
-        versionName = "0.3.7"
+        versionCode = 11
+        versionName = "0.3.8"
         buildConfigField(
             "String",
             "UPDATE_MANIFEST_URL",
+            "\"https://xiguasay.echooai.com/vokie/android/latest.json\""
+        )
+        buildConfigField(
+            "String",
+            "UPDATE_MANIFEST_BACKUP_URL",
             "\"https://github.com/anyshu/vokie-plugin-android/releases/latest/download/latest.json\""
         )
     }

@@ -16,7 +16,12 @@ repository root with a JDK supported by Android Gradle Plugin 8.7.3:
 
 The debug APK is written to
 `app/build/outputs/apk/debug/app-debug.apk`. The current release is version
-`0.3.7` (`versionCode 10`).
+`0.3.8` (`versionCode 11`).
+
+The app checks `https://xiguasay.echooai.com/vokie/android/latest.json` first
+and falls back to the GitHub Releases manifest when the primary manifest
+cannot be fetched or parsed. These endpoints are configured as
+`UPDATE_MANIFEST_URL` and `UPDATE_MANIFEST_BACKUP_URL` in `app/build.gradle.kts`.
 
 For release signing, copy `keystore.properties.example` to
 `keystore.properties` and provide the local keystore credentials. The

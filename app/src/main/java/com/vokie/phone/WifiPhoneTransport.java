@@ -14,6 +14,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import android.util.Log;
 
 final class WifiPhoneTransport {
     interface Listener {
@@ -101,6 +102,8 @@ final class WifiPhoneTransport {
             String deviceName) {
         try {
             List<InetAddress> hosts = device.connectionAddresses;
+            Log.i("VokiePhoneWifi", "connecting to " + device.service.getHost() + ":" +
+                    device.service.getPort());
             if (hosts.isEmpty()) throw new ConnectionFailure("Vokie 地址不可用，请重新搜索");
             PhonePairingCrypto.ClientKeys clientKeys = PhonePairingCrypto.createClientKeys();
             byte[] storedToken = credentials.getToken(device.instanceId);
@@ -126,12 +129,17 @@ final class WifiPhoneTransport {
                     storedToken);
         } catch (ConnectionFailure error) {
             if (!isCurrentConnection(connectionId)) return;
+            Log.e("VokiePhoneWifi", "connection rejected: " + error.getMessage(), error);
             closeCurrentConnection();
             listener.onState(connectionId, error.getMessage(), false, targetName);
         } catch (Exception error) {
             if (!isCurrentConnection(connectionId)) return;
+            Log.e("VokiePhoneWifi", "connection failed", error);
             closeCurrentConnection();
-            listener.onState(connectionId, "连接失败，正在重新搜索", false, targetName);
+            String message = error.getMessage();
+            listener.onState(connectionId,
+                    message == null || message.isEmpty() ? "连接失败，请重试" :
+                            "连接失败：" + message, false, targetName);
         }
     }
 

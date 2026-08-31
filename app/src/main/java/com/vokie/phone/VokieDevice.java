@@ -52,6 +52,28 @@ final class VokieDevice {
                 Collections.unmodifiableList(new ArrayList<>(addresses)));
     }
 
+    static VokieDevice fromInvite(String instanceId, String host, int port, String name) {
+        if (instanceId == null || instanceId.isEmpty() || port <= 0 || port > 65535) {
+            return null;
+        }
+        Set<InetAddress> addresses = new LinkedHashSet<>();
+        for (String value : host.split(",")) {
+            InetAddress address = parseIpv4(value.trim());
+            if (address != null) addresses.add(address);
+        }
+        if (addresses.isEmpty()) return null;
+        NsdServiceInfo service = new NsdServiceInfo();
+        service.setServiceName(name == null || name.isEmpty() ? "Vokie PC" : name);
+        service.setServiceType("_vokie-phone._tcp.");
+        service.setPort(port);
+        service.setHost(addresses.iterator().next());
+        return new VokieDevice(
+                service,
+                instanceId,
+                name == null || name.isEmpty() ? "Vokie PC" : name,
+                Collections.unmodifiableList(new ArrayList<>(addresses)));
+    }
+
     private static String attribute(Map<String, byte[]> attributes, String key) {
         byte[] value = attributes.get(key);
         return value == null ? "" : new String(value, StandardCharsets.UTF_8);

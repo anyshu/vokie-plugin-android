@@ -37,12 +37,16 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
+import com.google.zxing.integration.android.IntentIntegrator;
+import com.google.zxing.integration.android.IntentResult;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class MainActivity extends Activity {
@@ -127,7 +131,6 @@ public final class MainActivity extends Activity {
         registerRecordingActionReceiver();
         buildUi();
         updateManager = new AppUpdateManager(this);
-        discovery = new WifiDiscovery(this);
         transport = new WifiPhoneTransport(new WifiPhoneTransport.Listener() {
             @Override public void onState(
                     long connectionId, String message, boolean connected, String pcName) {
@@ -139,7 +142,6 @@ public final class MainActivity extends Activity {
                     showStatus(message, connected, pcName);
                     setConnected(connected);
                     if (connected) resetReconnectBackoff();
-                    else if (message.contains("正在重新搜索")) scheduleRediscovery();
                     else if ("连接已断开".equals(message)) scheduleReconnect();
                 });
             }
@@ -180,9 +182,9 @@ public final class MainActivity extends Activity {
                 });
             }
         }, credentials);
+        handlePairingIntent(getIntent());
         if (hasPermissions()) {
             requestNotificationPermissionIfNeeded();
-            startDiscovery();
         }
         else requestPermissions(requiredPermissions(), REQUEST_PERMISSIONS);
         mainHandler.postDelayed(() -> checkForUpdates(false), 1_200);
@@ -214,11 +216,11 @@ public final class MainActivity extends Activity {
         TextView title = text("Vokie", 26, INK, Typeface.BOLD);
         brand.addView(title, new LinearLayout.LayoutParams(-2, -2));
         identity.addView(brand, matchWrap());
-        statusText = text("●  正在寻找 Vokie", 14, MUTED, Typeface.BOLD);
+        statusText = text("●  等待扫码连接", 14, MUTED, Typeface.BOLD);
         LinearLayout.LayoutParams statusParams = matchWrap();
         statusParams.topMargin = dp(4);
         identity.addView(statusText, statusParams);
-        deviceText = text("同一 WiFi 下自动发现", 14, MUTED, Typeface.NORMAL);
+        deviceText = text("在电脑 Vokie 设置中打开二维码", 14, MUTED, Typeface.NORMAL);
         deviceText.setSingleLine(true);
         deviceText.setEllipsize(TextUtils.TruncateAt.END);
         LinearLayout.LayoutParams deviceParams = matchWrap();
@@ -345,8 +347,8 @@ public final class MainActivity extends Activity {
         openParams.rightMargin = dp(6);
         utilityRow.addView(openButton, openParams);
 
-        retryButton = actionButton("重新搜索", false, android.R.drawable.ic_popup_sync);
-        retryButton.setOnClickListener((view) -> reconnectOrSearch());
+        retryButton = actionButton("扫描二维码", false, android.R.drawable.ic_menu_camera);
+        retryButton.setOnClickListener((view) -> launchQrScanner());
         LinearLayout.LayoutParams retryParams = new LinearLayout.LayoutParams(0, dp(44), 1);
         retryParams.leftMargin = dp(6);
         utilityRow.addView(retryButton, retryParams);
@@ -366,6 +368,80 @@ public final class MainActivity extends Activity {
         setConnected(false);
     }
 
+    private void launchQrScanner() {
+        new IntentIntegrator(this)
+                .setPrompt("扫描电脑 Vokie 设置中的二维码")
+                .setBeepEnabled(false)
+                .setOrientationLocked(false)
+                .initiateScan();
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handlePairingIntent(intent);
+    }
+
+    private void handlePairingIntent(Intent intent) {
+        if (intent != null && intent.getData() != null) {
+            handlePairingUri(intent.getData().toString());
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        IntentResult result = IntentIntegrator.parseActivityResult(requestCode, resultCode, data);
+        if (result != null && result.getContents() != null) {
+            handlePairingUri(result.getContents());
+            return;
+        }
+        super.onActivityResult(requestCode, resultCode, data);
+    }
+
+    private void handlePairingUri(String raw) {
+        try {
+            URI uri = new URI(raw);
+            if (!"vokie".equalsIgnoreCase(uri.getScheme()) ||
+                    !"pair".equalsIgnoreCase(uri.getHost())) {
+                throw new URISyntaxException(raw, "不是 Vokie 配对二维码");
+            }
+            String instanceId = queryValue(uri.getRawQuery(), "instance_id");
+            String host = queryValue(uri.getRawQuery(), "host");
+            String hosts = queryValueOrDefault(uri.getRawQuery(), "hosts", host);
+            int port = Integer.parseInt(queryValue(uri.getRawQuery(), "port"));
+            String name = queryValue(uri.getRawQuery(), "name");
+            Log.i("VokiePhonePair", "invite targets=" + hosts + ":" + port + " name=" + name);
+            VokieDevice device = VokieDevice.fromInvite(instanceId, hosts, port, name);
+            if (device == null) throw new IllegalArgumentException("二维码内容无效");
+            devices.clear();
+            devices.add(device);
+            selectDevice(device);
+        } catch (Exception error) {
+            Log.e("VokiePhonePair", "invalid pairing QR", error);
+            Toast.makeText(this, "二维码无效，请重新扫描", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private String queryValue(String query, String key) throws Exception {
+        if (query == null) throw new IllegalArgumentException("缺少二维码参数");
+        for (String part : query.split("&")) {
+            String[] pair = part.split("=", 2);
+            if (pair.length == 2 && key.equals(pair[0])) {
+                return java.net.URLDecoder.decode(pair[1], "UTF-8");
+            }
+        }
+        throw new IllegalArgumentException("缺少二维码参数");
+    }
+
+    private String queryValueOrDefault(String query, String key, String fallback) {
+        try {
+            return queryValue(query, key);
+        } catch (Exception ignored) {
+            return fallback;
+        }
+    }
+
     private void startDiscovery() {
         startDiscovery(true);
     }
@@ -383,7 +459,7 @@ public final class MainActivity extends Activity {
         devices.clear();
         manualDisconnect = false;
         setConnected(false);
-        showStatus("正在寻找 Vokie", false, "同一 WiFi 下自动发现");
+        showStatus("等待扫码连接", false, "在电脑 Vokie 设置中打开二维码");
         scheduleIdleDiscoveryRefresh();
         discovery.start(new WifiDiscovery.Listener() {
             @Override public void onDevices(List<VokieDevice> discovered) {
@@ -470,7 +546,7 @@ public final class MainActivity extends Activity {
             showDevicePicker();
             return;
         }
-        startDiscovery();
+        launchQrScanner();
     }
 
     private VokieDevice findDiscoveredDevice(String instanceId) {
@@ -484,9 +560,7 @@ public final class MainActivity extends Activity {
         if (retryButton == null) return;
         boolean connected = transport != null && transport.isConnected();
         boolean connecting = transport != null && transport.isActive();
-        boolean canReconnect = selectedDevice != null &&
-                findDiscoveredDevice(selectedDevice.instanceId) != null;
-        retryButton.setText(canReconnect ? "重新连接" : "重新搜索");
+        retryButton.setText("扫描二维码");
         retryButton.setEnabled(!connected && !connecting);
     }
 
@@ -544,10 +618,6 @@ public final class MainActivity extends Activity {
         panel.addView(heading, new LinearLayout.LayoutParams(-1, dp(36)));
 
         List<View> menuRows = new ArrayList<>();
-        menuRows.add(addMenuAction(panel, dialog,
-                android.R.drawable.ic_menu_mylocation,
-                "Vokie 列表", "选择或连接附近电脑",
-                true, false, this::showDevicePicker));
         menuRows.add(addMenuAction(panel, dialog,
                 android.R.drawable.ic_btn_speak_now,
                 "录音模式", "当前：" + recordingModeLabel(),
@@ -917,7 +987,6 @@ public final class MainActivity extends Activity {
         super.onRequestPermissionsResult(requestCode, permissions, results);
         if (requestCode == REQUEST_PERMISSIONS && hasPermissions()) {
             requestNotificationPermissionIfNeeded();
-            startDiscovery();
         }
         else if (requestCode == REQUEST_NOTIFICATION_PERMISSION) return;
         else showStatus("需要麦克风和附近设备权限", false, "请在系统设置中允许");
@@ -1085,7 +1154,8 @@ public final class MainActivity extends Activity {
         mainHandler.removeCallbacks(connectedStatusResetRunnable);
         statusText.setText((connected ? "●  " : "○  ") + value);
         statusText.setTextColor(connected ? GREEN : MUTED);
-        deviceText.setText(pcName == null || pcName.isEmpty() ? "同一 WiFi 下自动发现" : pcName);
+        deviceText.setText(pcName == null || pcName.isEmpty() ?
+                "在电脑 Vokie 设置中打开二维码" : pcName);
     }
 
     private void showTransientConnectedStatus(String value) {

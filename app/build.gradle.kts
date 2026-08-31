@@ -22,8 +22,8 @@ android {
         applicationId = "com.vokie.phone"
         minSdk = 26
         targetSdk = 35
-        versionCode = 8
-        versionName = "0.3.5"
+        versionCode = 9
+        versionName = "0.3.6"
         buildConfigField(
             "String",
             "UPDATE_MANIFEST_URL",
@@ -75,6 +75,8 @@ android {
 }
 
 dependencies {
+    implementation("androidx.core:core:1.13.1")
+    implementation("com.journeyapps:zxing-android-embedded:4.3.0")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")
 }

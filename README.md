@@ -17,7 +17,7 @@ repository root with a JDK supported by Android Gradle Plugin 8.7.3:
 
 The debug APK is written to
 `app/build/outputs/apk/debug/app-debug.apk`. The current release is version
-`0.3.6` (`versionCode 9`).
+`0.3.7` (`versionCode 10`).
 
 For release signing, copy `keystore.properties.example` to
 `keystore.properties` and provide the local keystore credentials. The

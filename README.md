@@ -1,0 +1,40 @@
+# Vokie Phone for Android
+
+Vokie Phone is the Android companion app for connecting a phone to the Vokie
+desktop app over the local network. The project is an independent Gradle
+Android application; the desktop implementation lives in the `xiguashuo-pc`
+repository.
+
+## Build
+
+Open this repository in Android Studio, or run the Gradle tasks from the
+repository root with a JDK supported by Android Gradle Plugin 8.7.3:
+
+```bash
+./gradlew :app:test
+./gradlew :app:assembleDebug
+```
+
+The debug APK is written to
+`app/build/outputs/apk/debug/app-debug.apk`. The current release is version
+`0.3.5` (`versionCode 8`).
+
+For release signing, copy `keystore.properties.example` to
+`keystore.properties` and provide the local keystore credentials. The
+credentials file and keystore directory are ignored by Git.
+
+## GitHub Releases
+
+Pushing a tag such as `v0.3.5` runs `.github/workflows/android.yml`. Pull
+requests run the unit tests; version tags run tests, build a signed release,
+generate `latest.json`, and publish both files to a GitHub Release. Configure
+these repository secrets before publishing:
+
+`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`,
+and `ANDROID_KEY_PASSWORD`.
+
+## Relationship to Vokie PC
+
+The app speaks the phone pairing and recording protocol implemented by Vokie
+PC. Protocol changes must be coordinated across both repositories and
+documented in the PC repository's phone integration specifications.

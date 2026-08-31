@@ -4,8 +4,8 @@
 
 应用升级检查支持两个 manifest 来源，并在主来源不可用时自动切换到备用来源。
 
-版本升级测试应使用相同签名的 `0.3.7`（`versionCode 10`）作为基线，验证升级到
-`0.3.8`（`versionCode 11`）。测试 manifest 的 `versionCode`、`versionName`、
+版本升级测试应使用相同签名的 `0.3.8`（`versionCode 11`）作为基线，验证升级到
+`0.3.9`（`versionCode 12`）。测试 manifest 的 `versionCode`、`versionName`、
 `downloadUrl` 和 `sha256` 必须与实际 APK 一致。
 
 ## 来源顺序

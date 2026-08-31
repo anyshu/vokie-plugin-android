@@ -16,7 +16,7 @@ repository root with a JDK supported by Android Gradle Plugin 8.7.3:
 
 The debug APK is written to
 `app/build/outputs/apk/debug/app-debug.apk`. The current release is version
-`0.3.9` (`versionCode 12`).
+`0.3.10` (`versionCode 13`).
 
 The app checks `https://xiguasay.echooai.com/vokie/android/latest.json` first
 and falls back to the GitHub Releases manifest when the primary manifest

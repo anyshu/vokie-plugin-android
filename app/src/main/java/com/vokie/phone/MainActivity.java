@@ -287,20 +287,26 @@ public final class MainActivity extends Activity {
         recordControl.setOnTouchListener((view, event) -> {
             if (!transport.isConnected()) return true;
             if (event.getAction() == MotionEvent.ACTION_DOWN) {
-                view.getParent().requestDisallowInterceptTouchEvent(true);
+                if (view.getParent() != null) {
+                    view.getParent().requestDisallowInterceptTouchEvent(true);
+                }
                 view.animate().scaleX(0.96f).scaleY(0.96f).setDuration(100).start();
                 if (MODE_PTT.equals(recordingMode)) startRecording();
                 return true;
             }
             if (event.getAction() == MotionEvent.ACTION_UP) {
-                view.getParent().requestDisallowInterceptTouchEvent(false);
+                if (view.getParent() != null) {
+                    view.getParent().requestDisallowInterceptTouchEvent(false);
+                }
                 view.animate().scaleX(1f).scaleY(1f).setDuration(130).start();
                 if (MODE_PTT.equals(recordingMode)) stopRecording(true);
                 else toggleRecording();
                 return true;
             }
             if (event.getAction() == MotionEvent.ACTION_CANCEL) {
-                view.getParent().requestDisallowInterceptTouchEvent(false);
+                if (view.getParent() != null) {
+                    view.getParent().requestDisallowInterceptTouchEvent(false);
+                }
                 view.animate().scaleX(1f).scaleY(1f).setDuration(130).start();
                 if (MODE_PTT.equals(recordingMode)) stopRecording(true);
                 return true;
@@ -996,12 +1002,23 @@ public final class MainActivity extends Activity {
         if (recording.get() || !transport.isConnected()) return;
         int minBuffer = AudioRecord.getMinBufferSize(
                 SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
-        AudioRecord recorder = new AudioRecord(
-                MediaRecorder.AudioSource.VOICE_RECOGNITION,
-                SAMPLE_RATE,
-                AudioFormat.CHANNEL_IN_MONO,
-                AudioFormat.ENCODING_PCM_16BIT,
-                Math.max(minBuffer, FRAME_SAMPLES * 8));
+        if (minBuffer <= 0) {
+            showStatus("无法打开手机麦克风", true, deviceName());
+            return;
+        }
+        AudioRecord recorder;
+        try {
+            recorder = new AudioRecord(
+                    MediaRecorder.AudioSource.VOICE_RECOGNITION,
+                    SAMPLE_RATE,
+                    AudioFormat.CHANNEL_IN_MONO,
+                    AudioFormat.ENCODING_PCM_16BIT,
+                    Math.max(minBuffer, FRAME_SAMPLES * 8));
+        } catch (IllegalArgumentException | SecurityException error) {
+            showStatus("无法打开手机麦克风", true, deviceName());
+            Log.e(AUDIO_TAG, "create recorder failed", error);
+            return;
+        }
         if (recorder.getState() != AudioRecord.STATE_INITIALIZED) {
             recorder.release();
             showStatus("无法打开手机麦克风", true, deviceText.getText().toString());
@@ -1013,17 +1030,17 @@ public final class MainActivity extends Activity {
                     selectedDevice == null ? "Vokie" : selectedDevice.displayName,
                     recordingMode);
             recorder.startRecording();
-        } catch (IllegalStateException | SecurityException error) {
+        } catch (RuntimeException error) {
             PhoneRecordingService.stop(this);
             recorder.release();
-            showStatus("无法打开手机麦克风", true, deviceText.getText().toString());
+            showStatus("无法打开手机麦克风", true, deviceName());
             Log.e(AUDIO_TAG, "start failed", error);
             return;
         }
         if (recorder.getRecordingState() != AudioRecord.RECORDSTATE_RECORDING) {
             PhoneRecordingService.stop(this);
             recorder.release();
-            showStatus("无法打开手机麦克风", true, deviceText.getText().toString());
+            showStatus("无法打开手机麦克风", true, deviceName());
             Log.e(AUDIO_TAG, "recorder did not enter recording state");
             return;
         }
@@ -1036,7 +1053,11 @@ public final class MainActivity extends Activity {
         recordThread = new Thread(() -> recordLoop(recorder, sessionId), "vokie-wifi-audio");
         recordThread.start();
         updateRecordControl(true);
-        showStatus("正在录音", true, selectedDevice.displayName);
+        showStatus("正在录音", true, deviceName());
+    }
+
+    private String deviceName() {
+        return selectedDevice == null ? "" : selectedDevice.displayName;
     }
 
     private void toggleRecording() {

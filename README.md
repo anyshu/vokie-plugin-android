@@ -2,8 +2,7 @@
 
 Vokie Phone is the Android companion app for connecting a phone to the Vokie
 desktop app over the local network. The project is an independent Gradle
-Android application; the desktop implementation lives in the `xiguashuo-pc`
-repository.
+Android application. Visit [vokie.com](https://vokie.com) for more information.
 
 ## Build
 

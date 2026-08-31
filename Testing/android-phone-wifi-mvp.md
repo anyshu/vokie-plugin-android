@@ -60,6 +60,13 @@ OPPO 系统不要使用 `adb install -r -g`；该系统会拒绝 shell 直接授
 | 断网        | 录音前关闭手机 WiFi             | 状态离线，不允许开始录音                 |
 | 恢复网络    | 重新加入同一 WiFi               | 重新发现并连接 PC                        |
 
+### 2026-08-31 v0.3.11 快速按住说话崩溃修复
+
+根因是 PTT 快速松手时 `startForegroundService()` 尚未执行到
+`PhoneRecordingService.onStartCommand()` 就被停止，系统触发
+`ForegroundServiceDidNotStartInTimeException`。录音从前台 Activity 发起时改用
+`startService()`，由服务立即调用 `startForeground()`，避免该启动超时窗口。
+
 ## 2026-08-19 真机记录
 
 | 项目          | 结果                                                 |

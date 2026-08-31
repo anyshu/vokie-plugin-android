@@ -38,7 +38,9 @@ public final class PhoneRecordingService extends Service {
                 .setAction(ACTION_START)
                 .putExtra(EXTRA_DEVICE_NAME, deviceName)
                 .putExtra(EXTRA_RECORDING_MODE, recordingMode);
-        context.startForegroundService(intent);
+        // Recording starts from the visible Activity. Starting normally avoids the
+        // foreground-service timeout when a PTT tap is released immediately.
+        context.startService(intent);
     }
 
     static void stop(Context context) {

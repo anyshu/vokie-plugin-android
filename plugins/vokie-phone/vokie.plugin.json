@@ -14,7 +14,7 @@
     "undoLastOutput": true
   },
   "permissions": ["network-lan"],
-  "icon": "assets/icon.svg",
+  "icon": "assets/icon.png",
   "ui": { "entrypoint": "ui/index.html" },
   "worker": { "entrypoint": "worker/index.mjs", "args": [] }
 }

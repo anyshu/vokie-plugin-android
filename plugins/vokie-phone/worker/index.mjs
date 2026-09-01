@@ -7,7 +7,7 @@ const manifest = {
   id: 'd7d3a0dd-2d5b-4b8f-bc4a-4b9b2f1cbb2f', name: 'Vokie Phone Wi-Fi', version: '0.1.1', apiVersion: '1',
   platforms: ['darwin', 'win32', 'linux'], transports: ['wifi'],
   capabilities: { ptt: true, handsfree: true, longRecording: true, sendEnter: true, undoLastOutput: true },
-  permissions: ['network-lan'], icon: 'assets/icon.svg', ui: { entrypoint: 'ui/index.html' }, worker: { entrypoint: 'worker/index.mjs', args: [] }
+  permissions: ['network-lan'], icon: 'assets/icon.png', ui: { entrypoint: 'ui/index.html' }, worker: { entrypoint: 'worker/index.mjs', args: [] }
 };
 
 const wsUrl = process.env.VOKIE_PLUGIN_WS_URL;

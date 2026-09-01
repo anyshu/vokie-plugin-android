@@ -6,55 +6,50 @@
   <title>Vokie Phone Wi-Fi</title>
   <style>
     :root { color-scheme: light dark; font: 14px system-ui, -apple-system, sans-serif; }
-    body { margin: 0; padding: 28px 32px 36px; color: #172033; background: #fff; }
+    html, body { overflow: hidden; }
+    body { margin: 0; padding: 12px 16px 16px; color: #172033; background: #fff; }
     @media (prefers-color-scheme: dark) { body { color: #edf2f7; background: #111827; } }
-    .header { display: flex; align-items: center; gap: 14px; margin-bottom: 26px; }
-    .icon { width: 42px; height: 42px; border-radius: 10px; }
-    h1 { font-size: 22px; margin: 0 0 4px; }
+    .header { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; }
+    .icon { width: 30px; height: 30px; border-radius: 6px; }
+    h1 { font-size: 17px; margin: 0 0 1px; }
     .muted { color: #64748b; margin: 0; line-height: 1.5; }
     @media (prefers-color-scheme: dark) { .muted, .hint { color: #a9b5c6; } }
-    .panel { border: 1px solid #dbe2ea; border-radius: 10px; padding: 20px; margin-bottom: 16px; }
-    @media (prefers-color-scheme: dark) { .panel { border-color: #334155; } }
-    .panel h2 { font-size: 15px; margin: 0 0 12px; }
-    .status { display: flex; align-items: center; gap: 9px; font-weight: 600; }
+    .status { display: flex; align-items: center; gap: 8px; font-weight: 600; margin-bottom: 9px; }
+    #pairing h2 { font-size: 14px; margin: 0 0 8px; }
     .dot { width: 9px; height: 9px; border-radius: 50%; background: #94a3b8; }
     .dot.ready { background: #f59e0b; } .dot.connected { background: #16a34a; }
     .dot.recording { background: #dc2626; } .dot.error { background: #dc2626; }
-    .qr-wrap { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
-    #qr, #qr-placeholder { width: 248px; height: 248px; align-items: center; justify-content: center; background: #f8fafc; border-radius: 6px; }
+    .pairing { display: flex; align-items: center; }
+    .qr-wrap { display: flex; gap: 14px; align-items: center; }
+    #qr, #qr-placeholder { width: 160px; height: 160px; align-items: center; justify-content: center; background: #f8fafc; border-radius: 6px; }
     #qr { display: none; object-fit: contain; }
     #qr:not(.hidden) { display: block; }
     #qr-placeholder { display: flex; }
     #qr-placeholder.hidden { display: none; }
     #qr-placeholder { color: #64748b; text-align: center; padding: 0 18px; box-sizing: border-box; }
-    .steps { margin: 0; padding-left: 20px; line-height: 1.8; }
-    .invite { display: block; margin-top: 14px; max-width: 100%; overflow-wrap: anywhere; font-size: 11px; color: #64748b; }
+    .steps { margin: 0; padding-left: 17px; line-height: 1.5; }
     .hidden { display: none; }
     .hint { font-size: 12px; color: #64748b; margin-top: 12px; }
   </style>
 </head>
 <body>
   <header class="header">
-    <img class="icon" src="../assets/icon.svg" alt="" />
+    <img class="icon" src="../assets/icon.png" alt="" />
     <div><h1>Vokie Phone Wi-Fi</h1><p class="muted">将 Android 手机作为 Vokie 的无线录音设备</p></div>
   </header>
-  <section class="panel">
-    <h2>连接状态</h2>
+  <main>
     <div class="status"><span id="dot" class="dot"></span><span id="status">正在读取插件状态…</span></div>
-    <p id="device" class="muted" style="margin-top:8px"></p>
-  </section>
-  <section id="pairing" class="panel">
-    <h2>配对手机</h2>
-    <div class="qr-wrap">
-      <div><div id="qr-placeholder">插件启动后显示二维码</div><img id="qr" class="hidden" alt="手机连接二维码" /><p id="qr-status" class="hint">请先启用 Vokie Phone Wi-Fi 插件</p></div>
-      <ol class="steps"><li>打开 Vokie Phone App</li><li>进入“连接电脑”，扫描左侧二维码</li><li>确认手机与电脑处于同一 Wi-Fi</li></ol>
-    </div>
-    <code id="invite" class="invite"></code>
-  </section>
-  <section class="panel">
-    <h2>支持的功能</h2>
-    <p class="muted">按住手机按键说话、免提录音和长录音。录音音频通过局域网传输到 Vokie，不使用手机蓝牙。</p>
-  </section>
+    <p id="device" class="muted" style="margin-top:6px"></p>
+    <section id="pairing">
+      <h2>配对手机</h2>
+      <div class="pairing">
+        <div class="qr-wrap">
+          <div><div id="qr-placeholder">插件启动后显示二维码</div><img id="qr" class="hidden" alt="手机连接二维码" /><p id="qr-status" class="hint">等待插件生成二维码</p></div>
+          <ol class="steps"><li>打开 Vokie Phone App</li><li>进入“连接电脑”并扫描二维码</li><li>按提示完成配对</li></ol>
+        </div>
+      </div>
+    </section>
+  </main>
 <script src="../assets/qrcode.min.js"></script>
 <script src="../assets/vokie-plugin-sdk.js"></script>
 <script>
@@ -65,20 +60,21 @@
   const qr = document.getElementById('qr');
   const qrPlaceholder = document.getElementById('qr-placeholder');
   const qrStatus = document.getElementById('qr-status');
-  const invite = document.getElementById('invite');
+  let lastPairingInvite = '';
   const labels = { starting: '正在启动', ready: '等待手机扫码', connected: '手机已连接', recording: '正在录音', stopped: '已停止', error: '连接错误' };
   function render(state) {
     const value = state?.status || state?.state || 'stopped';
     status.textContent = labels[value] || value;
     dot.className = `dot ${value}`;
     device.textContent = state?.deviceName ? `设备：${state.deviceName}` : (state?.message || '');
-    const pairingInvite = state?.extensions?.pairingInvite || state?.pairingInvite;
+    const pairingInvite = state?.extensions?.pairingInvite || state?.pairingInvite || lastPairingInvite;
     if (pairingInvite) {
-      pairing.classList.remove('hidden'); invite.textContent = pairingInvite;
-      if (window.QRCode) QRCode.toDataURL(pairingInvite, { width: 248, margin: 2, errorCorrectionLevel: 'M' }).then((url) => { qr.src = url; qr.classList.remove('hidden'); qrPlaceholder.classList.add('hidden'); qrStatus.textContent = '请使用 Vokie Phone 扫描二维码'; }).catch(() => { qrStatus.textContent = '二维码生成失败，请重启插件'; });
+      lastPairingInvite = pairingInvite;
+      pairing.classList.remove('hidden');
+      if (window.QRCode) QRCode.toDataURL(pairingInvite, { width: 160, margin: 2, errorCorrectionLevel: 'M' }).then((url) => { qr.src = url; qr.classList.remove('hidden'); qrPlaceholder.classList.add('hidden'); qrStatus.textContent = '请使用 Vokie Phone 扫描二维码'; }).catch(() => { qrStatus.textContent = '二维码生成失败，请重启插件'; });
     } else {
-      qr.classList.add('hidden'); qrPlaceholder.classList.remove('hidden'); invite.textContent = '';
-      qrStatus.textContent = value === 'stopped' ? '插件当前未启动，请在插件列表中启用后重载此页面' : '等待插件生成配对二维码…';
+      qr.classList.add('hidden'); qrPlaceholder.classList.remove('hidden');
+      qrStatus.textContent = value === 'connected' ? '手机已连接' : value === 'recording' ? '手机正在录音' : value === 'stopped' ? '插件当前未启动，请在插件列表中启用后重载此页面' : '等待插件生成配对二维码…';
     }
   }
   render({ status: 'starting' });

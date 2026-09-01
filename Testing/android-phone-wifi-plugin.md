@@ -25,11 +25,12 @@ Plugin state 的 `extensions.pairingInvite` 字段交给自带 UI；UI 使用自
 Worker 入口必须带 Node shebang 并具有可执行权限，因为 PC Supervisor 会直接 spawn
 manifest 中的 `worker/index.mjs` 路径。
 
-插件主页包含连接状态、已连接设备、二维码、扫码步骤和支持功能说明。Host 需要在
+插件主页以紧凑布局展示连接状态、已连接设备、二维码、扫码步骤和支持功能说明。Host 需要在
 `ExternalDeviceState` 和 state merge 中保留不透明的 `extensions`，UI SDK 同时兼容 Host 将响应
 字段放在顶层或 `payload` 中的两种格式；否则页面只能显示静态标题，无法显示二维码。
 由于当前 Host bridge 没有 state push 订阅，主页打开期间每秒轮询一次 `get_state`，确保
 Worker 从 `starting` 切换到 `ready` 后二维码能及时刷新。
+手机连接成功后 UI 保留最近一次有效二维码，仅更新连接状态，避免配对信息突然消失。
 
 Vokie Plugin 标准协议当前没有“请求宿主配对确认”事件，也没有“宿主录音结束通知
 Plugin”的事件。因此：
@@ -56,4 +57,6 @@ node --check plugins/vokie-phone/worker/pairing.mjs
 ```
 
 将包复制到 `xiguashuo-pc` 后，使用 PC Plugin 包校验器检查 `vokie.plugin.json`、Worker、
-UI 和 icon 路径；再通过 `VOKIE_PLUGIN_WS_URL`、`VOKIE_PLUGIN_TOKEN` 启动 Worker 做握手测试。
+UI 和 icon 路径。插件 UI 和 manifest 均使用 Android App 的 launcher artwork
+（`app/src/main/res/drawable-nodpi/vokie_logo.png`）；再通过
+`VOKIE_PLUGIN_WS_URL`、`VOKIE_PLUGIN_TOKEN` 启动 Worker 做握手测试。

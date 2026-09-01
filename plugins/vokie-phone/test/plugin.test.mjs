@@ -69,6 +69,14 @@ test('Plugin package exposes the required custom UI and Worker entrypoints', asy
     await readFile(new URL(relativePath, packageDir));
   }
   await access(new URL(manifest.worker.entrypoint, packageDir), constants.X_OK);
+  const ui = await readFile(new URL(manifest.ui.entrypoint, packageDir), 'utf8');
+  assert.match(ui, /src="\.\.\/assets\/icon\.png"/);
+});
+
+test('Plugin icon is the Android App launcher artwork', async () => {
+  const pluginIcon = await readFile(new URL('assets/icon.png', packageDir));
+  const appIcon = await readFile(new URL('../../../app/src/main/res/drawable-nodpi/vokie_logo.png', import.meta.url));
+  assert.deepEqual(pluginIcon, appIcon);
 });
 
 test('Plugin UI does not render a broken image before the Worker publishes an invite', async () => {
@@ -93,6 +101,13 @@ test('Generated QR replaces the placeholder instead of stacking below it', async
   const html = await readFile(new URL('ui/index.html', packageDir), 'utf8');
   assert.match(html, /#qr-placeholder\.hidden\s*\{\s*display:\s*none/);
   assert.match(html, /qrPlaceholder\.classList\.add\('hidden'\)/);
+});
+
+test('UI keeps the last pairing QR visible after the phone connects', async () => {
+  const html = await readFile(new URL('ui/index.html', packageDir), 'utf8');
+  assert.match(html, /let lastPairingInvite = ''/);
+  assert.match(html, /\| lastPairingInvite/);
+  assert.match(html, /value === 'connected' \? '手机已连接'/);
 });
 
 test('Phone invite excludes non-LAN virtual IPv4 addresses', async () => {

@@ -1,0 +1,34 @@
+import net from 'node:net';
+import os from 'node:os';
+import { randomUUID, createPublicKey } from 'node:crypto';
+import { FrameDecoder, encodeFrame, parseJson, parsePhoneAudio } from './frame.mjs';
+import * as crypto from './pairing.mjs';
+import { PairingStore } from './store.mjs';
+import { advertise } from './mdns.mjs';
+
+export class PhoneServer {
+  constructor({ onSession, onAudio, onStop, onState, onCommand }) {
+    this.callbacks = { onSession, onAudio, onStop, onState, onCommand };
+    this.store = new PairingStore(); this.clients = new Set(); this.active = null; this.server = null;
+  }
+  async start() { this.server = net.createServer((socket) => this.accept(socket)); await new Promise((resolve, reject) => { this.server.once('error', reject); this.server.listen(0, '0.0.0.0', resolve); }); const port = this.server.address().port; const invite = this.invite(port); this.mdnsStop = advertise(port, this.store.instanceId, 'Vokie Phone', (message) => this.callbacks.onState('error', { message })); this.callbacks.onState('ready', { message: `listening on ${port}`, pairingInvite: invite }); }
+  invite(port) { const hosts = Object.values(os.networkInterfaces()).flat().filter((entry) => entry && entry.family === 'IPv4' && !entry.internal && isLanIpv4(entry.address)).map((entry) => entry.address); const host = hosts[0]; if (!host) return ''; const query = new URLSearchParams({ v: '1', instance_id: this.store.instanceId, host, hosts: hosts.join(','), port: String(port), name: os.hostname() }); return `vokie://pair?${query}`; }
+  stop() { for (const client of this.clients) client.socket.destroy(); this.clients.clear(); this.active = null; this.mdnsStop?.(); this.mdnsStop = null; this.server?.close(); this.server = null; }
+  accept(socket) { const client = { socket, phase: 'hello', decoder: new FrameDecoder(), hello: null, ctx: null, secret: null, token: null, pairingId: null, fragments: new Map() }; this.clients.add(client); socket.setKeepAlive(true, 15000); socket.setTimeout(30000, () => { if (client.phase !== 'authenticated') socket.destroy(); }); socket.on('data', (chunk) => { try { for (const frame of client.decoder.push(chunk)) this.frame(client, frame); } catch (error) { socket.destroy(error); } }); socket.on('close', () => this.close(client)); }
+  frame(client, frame) { if (client.phase === 'hello') return this.hello(client, frame); if (client.phase !== 'authenticated') return this.proof(client, frame); if (frame[0] === 0x7b) return this.control(client, parseJson(frame)); const audio = parsePhoneAudio(frame); if (audio) this.audio(client, audio); }
+  hello(client, frame) { const message = parseJson(frame); if (!message || message.v !== 2 || message.type !== 'hello' || !message.deviceId || message.targetInstanceId !== this.store.instanceId) return this.reject(client, 'invalid_hello'); try { const keys = crypto.createKeys(); client.hello = message; client.pairingId = randomUUID(); client.secret = crypto.secret(keys.privateKey, crypto.publicKey(message.clientPublicKey)); client.ctx = crypto.context(this.store.instanceId, message.deviceId, client.pairingId, message.clientPublicKey, keys.publicKey); client.token = message.hasCredential ? this.store.getToken(message.deviceId) : null; client.serverPublicKey = keys.publicKey; client.serverKeys = keys; client.phase = client.token ? 'trusted-proof' : 'pairing-proof'; this.send(client, { v: 2, type: 'server_hello', mode: client.token ? 'trusted' : 'pairing', instanceId: this.store.instanceId, pcName: os.hostname(), pairingId: client.pairingId, serverPublicKey: keys.publicKey }); } catch { this.reject(client, 'key_agreement_failed'); } }
+  proof(client, frame) { const message = parseJson(frame); if (!message || !client.hello) return this.reject(client, 'invalid_proof'); if (client.phase === 'trusted-proof') { if (message.type !== 'auth_proof' || !client.token || !crypto.matches(crypto.authProof(client.token, client.ctx), message.proof)) return this.reject(client, 'credential_rejected'); this.store.touch(client.hello.deviceId); return this.authenticate(client, client.token, 'trusted'); } if (message.type !== 'pairing_ready' || !crypto.matches(crypto.readyProof(client.secret, client.ctx), message.proof)) return this.reject(client, 'pairing_proof_rejected'); const code = crypto.pairingCode(client.secret, client.ctx); this.callbacks.onState('pairing', { deviceName: client.hello.deviceName, pairingCode: code }); if (process.env.VOKIE_PHONE_REQUIRE_APPROVAL === '1' && process.env.VOKIE_PHONE_AUTO_APPROVE !== '1') return this.reject(client, 'pairing_approval_required'); client.token = crypto.deviceToken(client.secret, client.pairingId, client.ctx); this.store.trust(client.hello.deviceId, client.hello.deviceName, client.hello.platform, client.token); this.authenticate(client, client.token, 'paired'); }
+  authenticate(client, token, mode) { client.phase = 'authenticated'; if (this.active) this.active.socket.destroy(); this.active = client; this.callbacks.onState('connected', { deviceId: client.hello.deviceId, deviceName: client.hello.deviceName, platform: client.hello.platform }); this.send(client, { v: 2, type: 'auth_ok', mode, instanceId: this.store.instanceId, pcName: os.hostname(), proof: crypto.authOkProof(token, client.ctx) }); }
+  control(client, message) { if (!message || typeof message.type !== 'string') return this.reject(client, 'invalid_control'); if (message.type === 'open_vokie') return this.send(client, { v: 2, type: 'open_vokie_ok' }); if (message.type === 'forget_device') { this.store.revoke(client.hello.deviceId); this.send(client, { v: 2, type: 'forget_device_ok' }); return client.socket.destroy(); } this.callbacks.onSession(message); }
+  audio(client, audio) { if (client !== this.active) return; let group = client.fragments.get(audio.sequence); if (!group) client.fragments.set(audio.sequence, group = { count: audio.fragmentCount, parts: [] }); group.parts[audio.fragmentIndex] = audio.payload; if (group.parts.filter(Boolean).length === group.count) { client.fragments.delete(audio.sequence); this.callbacks.onAudio(audio.sessionId, audio.sequence, Buffer.concat(group.parts)); } }
+  send(client, message) { client.socket.write(encodeFrame(Buffer.from(JSON.stringify(message)))); }
+  reject(client, reason) { this.send(client, { v: 2, type: 'auth_error', reason }); client.socket.destroy(); }
+  close(client) { this.clients.delete(client); if (client === this.active) { this.active = null; this.callbacks.onStop('disconnect'); this.callbacks.onState('stopped'); } }
+}
+
+function isLanIpv4(address) {
+  const octets = address.split('.').map(Number);
+  if (octets.length !== 4 || octets.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return false;
+  const [first, second] = octets;
+  return first === 10 || (first === 172 && second >= 16 && second <= 31) || (first === 192 && second === 168);
+}

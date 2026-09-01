@@ -38,4 +38,5 @@ Worker when that variable is absent.
 
 Run the Vokie PC Plugin package validator against `plugins/vokie-phone` after
 copying the package into a Vokie PC checkout. The Worker itself has no Electron
-dependency and starts with `VOKIE_PLUGIN_WS_URL` and `VOKIE_PLUGIN_TOKEN`.
+dependency; Vokie PC supplies its authenticated runtime connection when the
+Plugin is enabled.

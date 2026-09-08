@@ -53,9 +53,11 @@ runtime, lifecycle, session protocol, audio pipeline, and UI bridge required by
 this project. The phone-specific implementation remains in this repository so
 it can evolve independently from the Vokie PC application.
 
-The current Plugin package version is `0.1.1`. Its UI uses the Android app's
+The current Plugin package version is `0.1.2`. Its UI uses the Android app's
 launcher artwork and displays the live pairing QR code supplied through the
-Plugin state `extensions.pairingInvite` field.
+Plugin state `extensions.pairingInvite` field; while a phone is pairing, the
+verification code is published through `extensions.pairing` for comparison
+with the code shown on the phone.
 
 ## Generating the Plugin
 

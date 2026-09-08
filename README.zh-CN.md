@@ -48,8 +48,9 @@ Wi-Fi，BLE 不在本项目范围内。
 标准生命周期和 WebSocket 合约的前提下，自由实现更多设备行为、命令、传输方式和不透明的
 `extensions`。
 
-当前 Plugin 包版本为 `0.1.1`。Plugin UI 使用 Android App 的 launcher 图标，并通过 Plugin
-state 的 `extensions.pairingInvite` 显示实时配对二维码。
+当前 Plugin 包版本为 `0.1.2`。Plugin UI 使用 Android App 的 launcher 图标，并通过 Plugin
+state 的 `extensions.pairingInvite` 显示实时配对二维码；配对期间的验证码通过
+`extensions.pairing` 展示，与手机上的验证码比对。
 
 ## Plugin 生成方式
 

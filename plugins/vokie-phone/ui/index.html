@@ -44,7 +44,7 @@
       <h2>配对手机</h2>
       <div class="pairing">
         <div class="qr-wrap">
-          <div><div id="qr-placeholder">插件启动后显示二维码</div><img id="qr" class="hidden" alt="手机连接二维码" /><p id="qr-status" class="hint">等待插件生成二维码</p></div>
+          <div><div id="qr-placeholder">插件启动后显示二维码</div><img id="qr" class="hidden" alt="手机连接二维码" /><p id="qr-status" class="hint">等待插件生成二维码</p><p id="pairing-code" class="hint hidden"></p></div>
           <ol class="steps"><li>打开 Vokie Phone App</li><li>进入“连接电脑”并扫描二维码</li><li>按提示完成配对</li></ol>
         </div>
       </div>
@@ -60,6 +60,7 @@
   const qr = document.getElementById('qr');
   const qrPlaceholder = document.getElementById('qr-placeholder');
   const qrStatus = document.getElementById('qr-status');
+  const pairingCode = document.getElementById('pairing-code');
   let lastPairingInvite = '';
   const labels = { starting: '正在启动', ready: '等待手机扫码', connected: '手机已连接', recording: '正在录音', stopped: '已停止', error: '连接错误' };
   function render(state) {
@@ -75,6 +76,14 @@
     } else {
       qr.classList.add('hidden'); qrPlaceholder.classList.remove('hidden');
       qrStatus.textContent = value === 'connected' ? '手机已连接' : value === 'recording' ? '手机正在录音' : value === 'stopped' ? '插件当前未启动，请在插件列表中启用后重载此页面' : '等待插件生成配对二维码…';
+    }
+    const pairing = state?.extensions?.pairing;
+    if (pairing?.pairingCode) {
+      const code = String(pairing.pairingCode);
+      pairingCode.textContent = `配对验证码：${code.slice(0, 3)} ${code.slice(3)}（${pairing.deviceName || '手机'}，请与手机上显示的一致）`;
+      pairingCode.classList.remove('hidden');
+    } else {
+      pairingCode.classList.add('hidden');
     }
   }
   render({ status: 'starting' });

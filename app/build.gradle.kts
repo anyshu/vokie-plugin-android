@@ -22,8 +22,8 @@ android {
         applicationId = "com.vokie.phone"
         minSdk = 26
         targetSdk = 35
-        versionCode = 15
-        versionName = "0.3.12"
+        versionCode = 16
+        versionName = "0.3.13"
         buildConfigField(
             "String",
             "UPDATE_MANIFEST_URL",
@@ -43,6 +43,11 @@ android {
     signingConfigs {
         if (releaseKeystorePropertiesFile.isFile) {
             create("release") {
+                // v1（JAR）签名必须启用：minSdk 26 时 AGP 默认只做 v2 签名，
+                // 而 Android 10 及以下设备的 PackageManager.getPackageArchiveInfo()
+                // 解析磁盘 APK 时只能从 META-INF（v1）读取签名，v2-only 的包
+                // 签名信息为空，导致应用内更新在 verifyPackage 处误判失败。
+                enableV1Signing = true
                 val configuredStoreFile = releaseSigningProperty("storeFile")
                 require(configuredStoreFile.isNotEmpty()) {
                     "storeFile is required in ${releaseKeystorePropertiesFile.path}"

@@ -16,6 +16,7 @@ import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
+import android.util.Log;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -205,7 +206,17 @@ final class AppUpdateManager {
         if (downloadedVersion != expectedVersionCode) {
             throw new IOException("APK version mismatch");
         }
-        if (!sameSigners(signatures(installed), signatures(downloaded))) {
+        // 部分 ROM（如 Android 10 及以下）对 v2-only APK 的
+        // getPackageArchiveInfo() 不填充签名信息，比对会误判失败。
+        // 仅当磁盘 APK 确实解析出了签名才强制比对；签名信息缺失时依靠
+        // HTTPS manifest 锁定的 sha256 与系统安装器（会拒绝签名不符的
+        // 升级包）兜底。
+        Signature[] installedSignatures = signatures(installed);
+        Signature[] downloadedSignatures = signatures(downloaded);
+        if (downloadedSignatures.length == 0) {
+            Log.w("VokiePhoneUpdate",
+                    "archive signing info unavailable, skipping signer check");
+        } else if (!sameSigners(installedSignatures, downloadedSignatures)) {
             throw new IOException("APK signer mismatch");
         }
     }

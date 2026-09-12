@@ -60,6 +60,19 @@ OPPO 系统不要使用 `adb install -r -g`；该系统会拒绝 shell 直接授
 | 断网        | 录音前关闭手机 WiFi             | 状态离线，不允许开始录音                 |
 | 恢复网络    | 重新加入同一 WiFi               | 重新发现并连接 PC                        |
 
+### 2026-09-12 v0.3.13 应用内更新签名校验修复
+
+现象：0.3.10/0.3.11 上应用内更新报"更新包下载或校验失败"，实际 APK 下载完整、
+sha256 正确。根因是 release 包仅有 v2 签名（minSdk 26 时 AGP 默认关闭 v1），而
+Android 10 及以下的 `PackageManager.getPackageArchiveInfo()` 解析磁盘 APK 时只能
+从 META-INF（v1 JAR 签名）读取证书，v2-only 的包签名信息为空，
+`sameSigners` 误判为 `APK signer mismatch`。本版修复：
+
+- release 签名启用 v1（JAR）+ v2 双签名，`getPackageArchiveInfo` 在所有系统版本
+  均可读出证书；老版本客户端的更新校验因此直接通过。
+- 客户端 `verifyPackage` 在磁盘 APK 解析不出签名信息时跳过签名比对（hash 已由
+  HTTPS manifest 锁定，系统安装器会拒绝签名不符的升级包），并记录日志。
+
 ### 2026-09-12 v0.3.12 后台断连自动重连
 
 未录音时 App 无前台服务，切后台即进入 cached 状态，Android/厂商省电机制会掐断

@@ -19,6 +19,10 @@ final class PhoneCredentialStore {
     private static final String PREFS = "vokie_phone_credentials_v2";
     private static final String SELECTED_INSTANCE = "selected_instance";
     private static final String RECORDING_MODE = "recording_mode";
+    private static final String LAST_INSTANCE = "last_instance";
+    private static final String LAST_HOSTS = "last_hosts";
+    private static final String LAST_PORT = "last_port";
+    private static final String LAST_NAME = "last_name";
     private final SharedPreferences preferences;
 
     PhoneCredentialStore(Context context) {
@@ -77,6 +81,50 @@ final class PhoneCredentialStore {
 
     void clearSelectedInstanceId() {
         preferences.edit().remove(SELECTED_INSTANCE).apply();
+    }
+
+    // 记录最近一次成功连接的电脑（instanceId + 地址 + 端口 + 名称），
+    // 用于冷启动（进程被杀后重新打开）时免扫码自动重连。
+    void saveLastDevice(String instanceId, String hosts, int port, String name) {
+        preferences.edit()
+                .putString(LAST_INSTANCE, instanceId)
+                .putString(LAST_HOSTS, hosts)
+                .putInt(LAST_PORT, port)
+                .putString(LAST_NAME, name == null ? "" : name)
+                .apply();
+    }
+
+    void clearLastDevice(String instanceId) {
+        if (!instanceId.equals(preferences.getString(LAST_INSTANCE, ""))) return;
+        preferences.edit()
+                .remove(LAST_INSTANCE)
+                .remove(LAST_HOSTS)
+                .remove(LAST_PORT)
+                .remove(LAST_NAME)
+                .apply();
+    }
+
+    LastDevice getLastDevice() {
+        String instanceId = preferences.getString(LAST_INSTANCE, "");
+        String hosts = preferences.getString(LAST_HOSTS, "");
+        int port = preferences.getInt(LAST_PORT, 0);
+        if (instanceId.isEmpty() || hosts.isEmpty() || port <= 0) return null;
+        return new LastDevice(instanceId, hosts, port,
+                preferences.getString(LAST_NAME, ""));
+    }
+
+    static final class LastDevice {
+        final String instanceId;
+        final String hosts;
+        final int port;
+        final String name;
+
+        LastDevice(String instanceId, String hosts, int port, String name) {
+            this.instanceId = instanceId;
+            this.hosts = hosts;
+            this.port = port;
+            this.name = name;
+        }
     }
 
     String getRecordingMode() {

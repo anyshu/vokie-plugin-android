@@ -142,7 +142,11 @@ public final class MainActivity extends Activity {
                     showStatus(message, connected, pcName);
                     setConnected(connected);
                     if (connected) resetReconnectBackoff();
-                    else if ("连接已断开".equals(message)) scheduleReconnect();
+                    // 读线程抛出的网络错误（例如后台被系统掐断的
+                    // "Software caused connection abort"）与写失败一样自动重连；
+                    // 验证/配对类失败不匹配此前缀，保持原有不动。
+                    else if ("连接已断开".equals(message) ||
+                            message.startsWith("连接失败")) scheduleReconnect();
                 });
             }
 
@@ -183,6 +187,7 @@ public final class MainActivity extends Activity {
             }
         }, credentials);
         handlePairingIntent(getIntent());
+        if (selectedDevice == null) restoreLastDevice();
         if (hasPermissions()) {
             requestNotificationPermissionIfNeeded();
         }
@@ -393,6 +398,19 @@ public final class MainActivity extends Activity {
         if (intent != null && intent.getData() != null) {
             handlePairingUri(intent.getData().toString());
         }
+    }
+
+    // 冷启动（后台进程被杀后重新打开）时，用上次成功连接的地址直接重连，
+    // 无需重新扫码；仅在配对凭据仍在时进行，解除验证后不会自动重连。
+    private void restoreLastDevice() {
+        PhoneCredentialStore.LastDevice last = credentials.getLastDevice();
+        if (last == null || !credentials.hasToken(last.instanceId)) return;
+        VokieDevice device = VokieDevice.fromInvite(
+                last.instanceId, last.hosts, last.port, last.name);
+        if (device == null) return;
+        devices.clear();
+        devices.add(device);
+        selectDevice(device);
     }
 
     @Override
@@ -1272,6 +1290,13 @@ public final class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         if (updateManager != null) updateManager.resumePendingInstall();
+        // 回到前台时：未在录音的连接在后台常被系统掐断（app 进入 cached
+        // 状态后 socket 被 abort），此时立即重连，不等退避计时。
+        if (transport != null && selectedDevice != null && !manualDisconnect
+                && !transport.isActive() && !transport.isConnected()) {
+            resetReconnectBackoff();
+            connectSelected();
+        }
     }
 
     private Button actionButton(String label, boolean primary, int icon) {

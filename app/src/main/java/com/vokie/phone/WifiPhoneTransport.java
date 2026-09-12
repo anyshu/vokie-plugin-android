@@ -223,6 +223,11 @@ final class WifiPhoneTransport {
                     credentials.saveToken(device.instanceId, pcName, candidateToken);
                 }
                 credentials.setSelectedInstanceId(device.instanceId);
+                credentials.saveLastDevice(
+                        device.instanceId,
+                        joinAddresses(device),
+                        device.service.getPort(),
+                        pcName);
                 connected.set(true);
                 socket.setSoTimeout(0);
                 listener.onState(connectionId, "已连接", true, pcName);
@@ -258,6 +263,7 @@ final class WifiPhoneTransport {
             if ("forget_device_ok".equals(type)) {
                 credentials.removeToken(device.instanceId);
                 credentials.clearSelectedInstanceId();
+                credentials.clearLastDevice(device.instanceId);
                 closeCurrentConnection();
                 listener.onDeviceForgotten(connectionId, device.instanceId, pcName);
                 return;
@@ -301,6 +307,15 @@ final class WifiPhoneTransport {
         byte[] payload = new byte[length];
         input.readFully(payload);
         return payload;
+    }
+
+    private static String joinAddresses(VokieDevice device) {
+        StringBuilder value = new StringBuilder();
+        for (InetAddress address : device.connectionAddresses) {
+            if (value.length() > 0) value.append(',');
+            value.append(address.getHostAddress());
+        }
+        return value.toString();
     }
 
     private static byte[] hello(

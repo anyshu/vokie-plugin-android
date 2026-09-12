@@ -1,5 +1,7 @@
 package com.vokie.phone;
 
+import android.util.Log;
+
 import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -9,6 +11,7 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
 final class AppUpdateManifestLoader {
+    private static final String TAG = "VokiePhoneUpdate";
     private static final int MAX_MANIFEST_BYTES = 64 * 1024;
 
     private AppUpdateManifestLoader() { }
@@ -16,11 +19,16 @@ final class AppUpdateManifestLoader {
     static AppUpdateInfo load(String primaryUrl, String backupUrl) throws Exception {
         Exception lastError = null;
         String[] urls = {primaryUrl, backupUrl};
-        for (String manifestUrl : urls) {
+        for (int index = 0; index < urls.length; index++) {
+            String manifestUrl = urls[index];
             if (manifestUrl == null || manifestUrl.trim().isEmpty()) continue;
             try {
-                return request(manifestUrl.trim());
+                AppUpdateInfo update = request(manifestUrl.trim());
+                Log.i(TAG, "update manifest loaded from " + manifestUrl.trim());
+                return update;
             } catch (Exception error) {
+                Log.w(TAG, "update manifest failed from " + manifestUrl.trim()
+                        + ": " + error.getMessage());
                 lastError = error;
             }
         }

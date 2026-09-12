@@ -70,6 +70,10 @@ jobs:
       - run: ./gradlew assembleRelease
       - name: Generate update manifest
         id: manifest
+        env:
+          # 国内访问 GitHub release 资产不可靠；latest.json 的 downloadUrl 必须指向
+          # 与主 manifest 同源的 CDN（CDN 侧按相同文件名镜像 APK）。
+          CDN_BASE: https://xiguasay.echooai.com/vokie/android
         shell: bash
         run: |
           set -euo pipefail
@@ -81,7 +85,7 @@ jobs:
           {
             "versionCode": ${{ steps.version.outputs.version_code }},
             "versionName": "${{ steps.version.outputs.version_name }}",
-            "downloadUrl": "https://github.com/anyshu/vokie-plugin-android/releases/latest/download/$filename",
+            "downloadUrl": "$CDN_BASE/$filename",
             "sha256": "$sha256",
             "forceUpdate": false,
             "releaseNotes": "Vokie Phone v${{ steps.version.outputs.version_name }}"

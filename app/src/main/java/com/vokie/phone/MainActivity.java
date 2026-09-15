@@ -107,6 +107,9 @@ public final class MainActivity extends Activity {
     private long sequence;
     private long controlSequence;
     private boolean manualDisconnect;
+    // 冷启动时先用持久化地址直连；若地址（尤其是动态端口）已失效，
+    // 连接失败后切换到 mDNS 重新发现，而不是要求用户重新扫码。
+    private boolean restoringLastDevice;
     private String recordingMode = MODE_PTT;
     private long lastPulseAt;
     private final RecordingPulseEnvelope recordingPulseEnvelope =
@@ -127,6 +130,7 @@ public final class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         credentials = new PhoneCredentialStore(this);
+        discovery = new WifiDiscovery(this);
         recordingMode = credentials.getRecordingMode();
         registerRecordingActionReceiver();
         buildUi();
@@ -141,7 +145,10 @@ public final class MainActivity extends Activity {
                     dismissPairingDialog();
                     showStatus(message, connected, pcName);
                     setConnected(connected);
-                    if (connected) resetReconnectBackoff();
+                    if (connected) {
+                        restoringLastDevice = false;
+                        resetReconnectBackoff();
+                    }
                     // 读线程抛出的网络错误（例如后台被系统掐断的
                     // "Software caused connection abort"）与写失败一样自动重连；
                     // 验证/配对类失败不匹配此前缀，保持原有不动。
@@ -410,6 +417,7 @@ public final class MainActivity extends Activity {
         if (device == null) return;
         devices.clear();
         devices.add(device);
+        restoringLastDevice = true;
         selectDevice(device);
     }
 
@@ -480,6 +488,7 @@ public final class MainActivity extends Activity {
         mainHandler.removeCallbacks(idleDiscoveryRefreshRunnable);
         if (resetBackoff) reconnectBackoff.reset();
         selectedDevice = null;
+        restoringLastDevice = false;
         devices.clear();
         manualDisconnect = false;
         setConnected(false);
@@ -500,6 +509,7 @@ public final class MainActivity extends Activity {
     }
 
     private void handleDevices(List<VokieDevice> discovered) {
+        restoringLastDevice = false;
         devices.clear();
         devices.addAll(discovered);
         moreButton.setEnabled(true);
@@ -590,6 +600,10 @@ public final class MainActivity extends Activity {
 
     private void scheduleReconnect() {
         if (manualDisconnect || selectedDevice == null || devices.isEmpty()) return;
+        if (restoringLastDevice) {
+            scheduleRediscovery();
+            return;
+        }
         mainHandler.removeCallbacks(reconnectRunnable);
         mainHandler.removeCallbacks(rediscoveryRunnable);
         long delayMs = reconnectBackoff.nextDelayMs();

@@ -22,8 +22,8 @@ android {
         applicationId = "com.vokie.phone"
         minSdk = 26
         targetSdk = 35
-        versionCode = 16
-        versionName = "0.3.13"
+        versionCode = 17
+        versionName = "0.3.14"
         buildConfigField(
             "String",
             "UPDATE_MANIFEST_URL",

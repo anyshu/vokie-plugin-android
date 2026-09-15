@@ -17,7 +17,7 @@ Android Gradle Plugin 8.7.3 支持的 JDK：
 ```
 
 Debug APK 输出到 `app/build/outputs/apk/debug/app-debug.apk`。当前 Android
-应用版本为 `0.3.11`（`versionCode 14`）。
+应用版本为 `0.3.14`（`versionCode 17`）。
 
 发布签名时，将 `keystore.properties.example` 复制为 `keystore.properties`，并填写
 本地 keystore 凭据。凭据文件和 keystore 目录已加入 Git 忽略列表。
